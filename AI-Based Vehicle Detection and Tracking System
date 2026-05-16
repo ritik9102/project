@@ -1,68 +1,72 @@
 import cv2
 from ultralytics import YOLO
 
-# Load YOLOv8 model
-model = YOLO("yolov8n.pt")  # Nano model (fast)
+# Load YOLO model
+model = YOLO("yolov8n.pt")
 
-# Vehicle classes in COCO dataset
-vehicle_classes = ["car", "motorcycle", "bus", "truck"]
+# Vehicle names we want to detect
+vehicles = ["car", "bus", "truck", "motorcycle"]
 
-# Open video file or webcam
-video_path = "traffic.mp4"      # Replace with your video file
-cap = cv2.VideoCapture(video_path)
+# Read video
+video = cv2.VideoCapture("traffic.mp4")
 
-while cap.isOpened():
+while True:
 
-    success, frame = cap.read()
+    # Read one frame from video
+    ret, frame = video.read()
 
-    if not success:
+    # Stop if video ends
+    if not ret:
         break
 
-    # Run YOLO tracking
-    results = model.track(
-        frame,
-        persist=True
-    )
+    # Detect and track objects
+    result = model.track(frame, persist=True)
 
-    # Get detections
-    boxes = results[0].boxes
+    # Get detected boxes
+    detected_objects = result[0].boxes
 
-    if boxes is not None:
+    # Check if objects are found
+    if detected_objects is not None:
 
-        for box in boxes:
+        for object in detected_objects:
 
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            # Get box coordinates
+            x1, y1, x2, y2 = map(int, object.xyxy[0])
 
-            confidence = float(box.conf[0])
+            # Get object confidence
+            score = float(object.conf[0])
 
-            class_id = int(box.cls[0])
+            # Get object class ID
+            class_id = int(object.cls[0])
 
-            class_name = model.names[class_id]
+            # Convert ID to name
+            object_name = model.names[class_id]
 
-            # Filter only vehicles
-            if class_name in vehicle_classes:
+            # Show only vehicles
+            if object_name in vehicles:
 
-                # Tracking ID
-                if box.id is not None:
-                    track_id = int(box.id[0])
+                # Get tracking ID
+                if object.id is not None:
+                    vehicle_id = int(object.id[0])
                 else:
-                    track_id = 0
+                    vehicle_id = 0
 
-                label = f"{class_name} ID:{track_id} {confidence:.2f}"
+                # Create label text
+                text = object_name + " ID:" + str(vehicle_id)
 
-                # Draw rectangle
+                # Draw rectangle around vehicle
                 cv2.rectangle(
                     frame,
                     (x1, y1),
                     (x2, y2),
-                    (0,255,0),
+                    (0, 255, 0),
                     2
                 )
 
-                # Put label
+                # Show text above rectangle
                 cv2.putText(
                     frame,
-                    label,
+                    text,
                     (x1, y1-10),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
@@ -70,11 +74,13 @@ while cap.isOpened():
                     2
                 )
 
-    cv2.imshow("Vehicle Detection and Tracking", frame)
+    # Display output video
+    cv2.imshow("Vehicle Detection", frame)
 
-    # Press q to exit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    # Press q to stop
+    if cv2.waitKey(1) == ord("q"):
         break
 
-cap.release()
+# Close everything
+video.release()
 cv2.destroyAllWindows()
